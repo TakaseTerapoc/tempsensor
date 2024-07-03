@@ -108,6 +108,10 @@
     "ratio": "cpp",
     "cstring": "cpp",
     "fstream": "cpp",
-    "sstream": "cpp"
+    "sstream": "cpp",
+    "condition_variable": "cpp",
+    "mutex": "cpp",
+    "stop_token": "cpp",
+    "thread": "cpp"
   }
 }
