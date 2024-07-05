@@ -11,11 +11,22 @@
 #define DHT_PIN1 4  // GPIOピン番号
 #define DHT_PIN2 17  // GPIOピン番号
 
+int failed_counter = 0; // エラーカウンタ
+int total_counter = 0; // トータルカウンタ
+std::mutex failed_counter_mutex; // エラーカウンタ用のミューテックス
+std::mutex total_counter_mutex;
 std::mutex db_mutex; // データベースアクセス用のミューテックス
 
 void disconnect_db(PGconn *conn) {
     PQfinish(conn); // DBから切断
     exit(1);
+}
+bool check_sum(uint8_t j, std::vector<int>& data){
+    if ((j >= 40) && (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xFF))) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool read_dht_data(int dht_pin, std::vector<int>& data) {
@@ -50,21 +61,27 @@ bool read_dht_data(int dht_pin, std::vector<int>& data) {
         }
 
         if ((i >= 4) && (i % 2 == 0)) {
-            data[j / 8] <<= 1;
+            data[j / 8] <<= 1; // 1ビット左シフト
             if (counter > 16) {
-                data[j / 8] |= 1;
+                data[j / 8] |= 1; 
             }
             j++;
         }
     }
-
-    if ((j >= 40) && (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xFF))) {
+    if (check_sum(j, data)) {
         return true;
     } else {
+        std::lock_guard<std::mutex> lock(failed_counter_mutex); // failed_counterへのアクセスを保護
         if (dht_pin == DHT_PIN1){
             std::cout << "センサー1のデータが不正です\n";
+            failed_counter++;
+            total_counter++;
+            std::cout << failed_counter << "回目のエラー\n";
         } else {
             std::cout << "センサー2のデータが不正です\n";
+            failed_counter++;
+            total_counter++;
+            std::cout << failed_counter << "回目のエラー\n";
         }
 
         return false;
@@ -137,19 +154,19 @@ void insert_db(int dht_pin, const std::vector<int>& data) {
 
 void sensor_thread(int dht_pin) {
     std::vector<int> data(5, 0); // スレッドごとのデータバッファを作成
+
     while (true) {
         if (read_dht_data(dht_pin, data)) {
             insert_db(dht_pin, data);
         }
-        std::this_thread::sleep_for(std::chrono::seconds(10)); // 10秒待つ
+        std::this_thread::sleep_for(std::chrono::seconds(5)); // 10秒待つ
     }
 }
 
 int main() {
     if (gpioInitialise() < 0) {
         std::cerr << "pigpioの初期化に失敗しました" << std::endl;
-        return 1;
-    }
+    }   
 
     std::thread th1(sensor_thread, DHT_PIN1);
     std::thread th2(sensor_thread, DHT_PIN2);
@@ -158,5 +175,6 @@ int main() {
     th2.join();
 
     gpioTerminate();
+
     return 0;
 }

@@ -5,12 +5,11 @@
 #include <iostream>
 #include <libpq-fe.h>
 #include <sstream>
+#include <thread>
 
-#define MAX_TIMINGS 85 // タイムアウト時間
+#define MAX_TIMINGS 100 // タイムアウト時間
 #define DHT_PIN1 4  // GPIOピン番号
 #define DHT_PIN2 17  // GPIOピン番号
-
-std::vector<int> data(5, 0);
 
 void disconnect_db(PGconn *conn) {
     PQfinish(conn);// DBから切断
@@ -19,10 +18,12 @@ void disconnect_db(PGconn *conn) {
 
 // dhtからの信号をを読み取る＆データベースにデータを挿入する関数
 bool read_dht_data(int dht_pin) {
+
+    std::vector<int> data(5, 0);
     data.assign(5, 0);
     uint8_t laststate = PI_HIGH;
     uint8_t counter = 0;
-    uint8_t j = 0, i;
+    int j = 0, i;
     std::stringstream ss;
     const char *conninfo;
     PGconn     *conn;
@@ -38,7 +39,7 @@ bool read_dht_data(int dht_pin) {
         std::cerr << "Connection to database failed: " << PQerrorMessage(conn) << std::endl; // エラーメッセージを表示
         disconnect_db(conn); // DBから切断
     }
-
+    
     // 開始信号の送信：ピンをLOWにしてセンサーに信号を送る
     gpioSetMode(dht_pin, PI_OUTPUT); //gpioSetMode()はピンのモードを設定する 0:INPUT 1:OUTPUT
     gpioWrite(dht_pin, PI_LOW); //gpioWrite()はピンに値を書き込む 0:LOW 1:HIGH
@@ -47,9 +48,11 @@ bool read_dht_data(int dht_pin) {
     gpioDelay(40);
     gpioSetMode(dht_pin, PI_INPUT);
 
+    
     // データの読み取り：センサーからデータが40ビットで送られてくるのでそれをキャッチ
     for (i = 0; i < MAX_TIMINGS; i++) {
         counter = 0;
+        // std::cout << "DHTPINの状態は" <<gpioRead(dht_pin)<< "です" << std::endl;
         while (gpioRead(dht_pin) == laststate) {
             counter++;
             gpioDelay(1);
@@ -63,7 +66,7 @@ bool read_dht_data(int dht_pin) {
         if (counter == 255) {
             break;
         }
-
+        
         if ((i >= 4) && (i % 2 == 0)) {
             data[j / 8] <<= 1;
             if (counter > 16) {
@@ -73,7 +76,7 @@ bool read_dht_data(int dht_pin) {
         }
 
     }
-
+    
     if ((j >= 40) &&
         (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xFF))) {
         float h = (float)((data[0] << 8) + data[1]) / 10;
@@ -123,7 +126,11 @@ bool read_dht_data(int dht_pin) {
         PQfinish(conn);
         return true;
     } else {
-        std::cout << "データがありません\n";
+        if (dht_pin == DHT_PIN1){
+            std::cerr << "センサー1のデータの読み取りに失敗しました" << std::endl;
+        } else {
+            std::cerr << "センサー2のデータの読み取りに失敗しました" << std::endl;
+        }
         return false;
     }
 }
@@ -142,8 +149,15 @@ int main() {
 
     while (1) {
         read_dht_data(DHT_PIN1);
+        //     std::cerr << "センサー1のデータの読み取りに失敗しました" << std::endl;
+        //     for(int i = 0; i < 5; i++){
+        //         if(read_dht_data(DHT_PIN1)){
+        //             break;
+        //         }
+        //     }
+        // }
         read_dht_data(DHT_PIN2);
-        gpioDelay(30000000);  // 30秒待つ
+        gpioDelay(10000000);  // 30秒待つ
     }
 
     gpioTerminate(); // pigpioの終了処理
