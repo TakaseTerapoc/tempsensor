@@ -1,20 +1,21 @@
 {
-  "configurations": [
-    {
-      "name": "linux-gcc-arm64",
-      "includePath": [
-        "${workspaceFolder}/**",
-        "/usr/include/postgresql",  // libpqのヘッダーファイルが存在するパス
-        "/usr/local/include"  // その他必要なインクルードパスを追加
-      ],
-      "compilerPath": "/usr/bin/gcc",
-      "cStandard": "${default}",
-      "cppStandard": "${default}",
-      "intelliSenseMode": "linux-gcc-arm64",
-      "compilerArgs": [
-        ""
-      ]
-    }
-  ],
-  "version": 4
+    "configurations": [
+        {
+            "name": "linux-gcc-arm64",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/postgresql",
+                "/usr/local/include",
+                "${workspaceFolder}/DHT11_samples-master/dev/RaspberryPi/src/RasPi_DHT11/src"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "${default}",
+            "cppStandard": "${default}",
+            "intelliSenseMode": "linux-gcc-arm64",
+            "compilerArgs": [
+                ""
+            ]
+        }
+    ],
+    "version": 4
 }
