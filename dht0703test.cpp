@@ -30,7 +30,7 @@ bool check_sum(uint8_t j, std::vector<int>& data){
 }
 
 bool read_dht_data(int dht_pin, std::vector<int>& data) {
-    data.assign(5, 0);
+    data.assign(5, 0); //初期化
     uint8_t laststate = PI_HIGH;
     uint8_t counter = 0;
     uint8_t j = 0, i;
